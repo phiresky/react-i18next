@@ -31,9 +31,9 @@ function nodesToString(mem, children, index) {
 
       const keys = Object.keys(clone);
       if (format && keys.length === 1) {
-        mem = `${mem}<${elementKey}>{{${keys[0]}, ${format}}}</${elementKey}>`;
+        mem = `${mem}{{${keys[0]}, ${format}}}`;
       } else if (keys.length === 1) {
-        mem = `${mem}<${elementKey}>{{${keys[0]}}}</${elementKey}>`;
+        mem = `${mem}{{${keys[0]}}}`;
       } else if (console && console.warn) {
         // not a valid interpolation object (can only contain one value plus format)
         console.warn(`react-i18next: the passed in object contained more than one variable - the object should look like {{ value, format }} where format is optional.`, child)
@@ -47,6 +47,18 @@ function nodesToString(mem, children, index) {
 }
 
 function renderNodes(children, targetString, i18n) {
+
+  const data = {};
+  function getData(children) {
+    if (Object.prototype.toString.call(children) !== '[object Array]') children = [children];
+    for (const child of children) {
+      if (typeof child === 'string') continue;
+      if (hasChildren(child)) getData(getChildren(child));
+      else if (typeof child === 'object' && !React.isValidElement(child)) Object.assign(data, child);
+    }
+  }
+  getData(children);
+  targetString = i18n.services.interpolator.interpolate(targetString, data, i18n.language);
 
   // parse ast from string with additional wrapper tag
   // -> avoids issues in parser removing prepending text nodes
@@ -71,9 +83,6 @@ function renderNodes(children, targetString, i18n) {
             { ...child.props, key: i },
             inner
           ));
-        } else if (typeof child === 'object' && !isElement) {
-          const interpolated = i18n.services.interpolator.interpolate(node.children[0].content, child, i18n.language);
-          mem.push(interpolated);
         } else {
           mem.push(child);
         }
